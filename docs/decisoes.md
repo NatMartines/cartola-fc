@@ -49,4 +49,4 @@
 ## Custo
 
 - Warehouse `WH_CARTOLA` XSMALL, auto-suspend de 60 s, resource monitor `RM_CARTOLA` de 10 créditos.
-- Custo final: _preencher com o resultado do `sql/04_encerramento.sql`_.
+- Custo final: **0,78 crédito** no `WH_CARTOLA` (pipeline completo) e **~11 créditos** de Snowpark Container Services (app Streamlit, medição da conta inteira desde 16/11). Lição: o dashboard custa muito mais que o pipeline, então o app deve ficar fechado quando não estiver em uso.
