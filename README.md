@@ -1,4 +1,4 @@
-# ⚽ Cartola FC · Onde estão os pontos (2022 a 2026)
+# ⚽ Cartola FC · Cada cartoleta conta (2022 a 2026)
 
 **Vale mais escalar jogador barato ou caro? A "fase" do jogador ajuda a prever a próxima rodada?**
 Pipeline de dados com cinco temporadas do Cartola FC: ingestão em Python, modelagem com **dbt** no **Snowflake** e dashboard em **Streamlit in Snowflake**.
@@ -54,8 +54,8 @@ O método escolhido foi definido com 2022 a 2025 e **confirmado em 2026**, tempo
 
 Duas abas em **Streamlit in Snowflake**:
 
-- **⚽ Escalar para a próxima rodada:** monta num campo de futebol o time com mais pontos projetados para a rodada seguinte à última carregada. Escolha o esquema (4-3-3, 3-5-2…), quantas **cartoletas** quer gastar e em qual setor gastar mais (ataque, meio ou defesa). Mostra pontos, custo, sobra, cartoletas por setor, o jogador mais caro (com a melhor rodada dele) e a escalação.
-- **🏆 Melhores jogadores:** escolha a temporada, uma rodada (ou todas) e o esquema. O campo mostra o melhor de cada posição, e o ranking lista os 10 melhores, ordenados por pontos, custo-benefício, valorização ou média.
+- **⚽ Monte seu time:** monta num campo de futebol o time com mais pontos projetados para a rodada seguinte à última carregada. Escolha o esquema (4-3-3, 3-5-2…), quantas **cartoletas** quer gastar e em qual setor gastar mais (ataque, meio ou defesa). Mostra pontos, custo, sobra, cartoletas por setor, o jogador mais caro (com a melhor rodada dele) e a escalação.
+- **🏆 Melhores jogadores/time:** escolha a temporada, uma rodada (ou todas) e o esquema. O campo mostra o melhor de cada posição, e o ranking lista os 10 melhores, ordenados por pontos, custo-benefício, valorização ou média.
 
 ---
 
@@ -150,9 +150,9 @@ A fonte tem armadilhas que mudam o resultado se passarem despercebidas:
 | Nome do clube em três formatos, inclusive com acentuação quebrada ("SÃ£o Paulo") | Só o `clube_id` da fonte + seed de clubes |
 | Ordem e conjunto de colunas diferentes a cada ano | JSON + `VARIANT` na RAW |
 
-- **Testes dbt em todas as camadas:** `unique`, `not_null`, `relationships`, `accepted_values`, `accepted_range`, `unique_combination_of_columns`, **unit test** da projeção e testes singulares (soma do mart igual à fato, um arquivo por rodada, projeção dentro do intervalo possível). Problemas conhecidos da fonte ficam como `warn`.
+- **66 testes dbt em todas as camadas** (65 de dados + 1 unit test, 0 erros): `unique`, `not_null`, `relationships`, `accepted_values`, `accepted_range`, `unique_combination_of_columns`, **unit test** da projeção e testes singulares (soma do mart igual à fato, um arquivo por rodada, projeção dentro do intervalo possível). Problemas conhecidos da fonte ficam como `warn`.
 - **Validação contra o número oficial:** a média recalculada com os jogos válidos bate com a média do Cartola (±0,05) em **95,9%** dos atletas em 2024 e **96,9%** em 2026 (temporadas com a rodada 1 válida).
-- **Elementary:** relatório de testes e lineage em `docs/elementary/`.
+- **Elementary:** [relatório de testes e lineage](https://natmartines.github.io/cartola-fc/elementary/) (0 erros; 2 avisos esperados da fonte).
 
 ---
 
@@ -171,7 +171,9 @@ Todas as decisões estão em [`docs/decisoes.md`](docs/decisoes.md).
 
 ## 💰 Custo
 
-Warehouse **XSMALL** com auto-suspend de 60 s e **resource monitor** de 10 créditos. O custo final está em [`docs/decisoes.md`](docs/decisoes.md).
+Warehouse **XSMALL** com auto-suspend de 60 s e **resource monitor** de 10 créditos.
+
+Custo total do projeto: **cerca de 12 créditos**. O pipeline (ingestão, dbt, testes e consultas no `WH_CARTOLA`) gastou só **0,78 crédito**; o restante (~11 créditos, mais de 90%) foi do app Streamlit, que roda num container e consome enquanto está aberto. Detalhes em [`docs/decisoes.md`](docs/decisoes.md).
 
 ---
 
