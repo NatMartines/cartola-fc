@@ -1,0 +1,287 @@
+version: 2
+
+models:
+  - name: fct_desempenho
+    description: >
+      Fato central do star schema: uma linha por atleta por rodada, de 2022 a 2026, com pontos, preço
+      pago antes da rodada, scouts da rodada e a projeção feita antes do jogo. Incremental (merge).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [temporada, rodada, atleta_id]
+    columns:
+      - name: atleta_id
+        description: Id do atleta.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_jogador')
+                field: atleta_id
+      - name: clube_id
+        description: Clube do atleta naquela rodada (atletas podem trocar de clube na temporada).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_clube')
+                field: clube_id
+              config:
+                severity: warn
+      - name: posicao_id
+        description: Posição do atleta naquela rodada.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_posicao')
+                field: posicao_id
+      - name: conta_na_analise
+        description: Entrou em campo e a pontuação vale. Filtro de todas as análises de pontos.
+        data_tests: [not_null]
+      - name: pontos
+        description: Pontuação na rodada.
+      - name: pontos_projetados
+        description: Projeção feita só com as rodadas anteriores (shrinkage). Nula sem histórico suficiente.
+      - name: preco_antes
+        description: Preço pago para escalar o atleta na rodada, em C$.
+
+  - name: dim_jogador
+    description: Uma linha por atleta, com apelido, posição e clube mais recentes.
+    columns:
+      - name: atleta_id
+        description: Id do atleta.
+        data_tests: [unique, not_null]
+
+  - name: dim_clube
+    description: >
+      Clubes da Série A de 2022 a 2026 (do seed clubes), com o escudo da API do Cartola em data URI.
+      Clubes sem escudo na API ficam com escudo_data_uri nulo e o dashboard mostra as cores do clube.
+    columns:
+      - name: clube_id
+        description: Id do clube.
+        data_tests: [unique, not_null]
+
+  - name: dim_posicao
+    description: Posições do Cartola (do seed posicoes).
+    columns:
+      - name: posicao_id
+        description: Id da posição.
+        data_tests: [unique, not_null]
+
+  - name: dim_rodada
+    description: >
+      Dimensão de tempo: uma linha por rodada de cada temporada. A fonte não tem datas, só temporada
+      e rodada. arquivo_valido = false nas rodadas 1 de 2022, 2023 e 2025.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [temporada, rodada]
+    columns:
+      - name: arquivo_valido
+        description: O arquivo traz a pontuação da própria rodada.
+        data_tests: [not_null]
+
+  - name: mart_jogador_temporada
+    description: >
+      Uma linha por atleta por temporada. Jogos e média são os oficiais (último arquivo da temporada);
+      custo-benefício e consistência usam só os jogos válidos. Alimenta os rankings do dashboard.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [temporada, atleta_id]
+    columns:
+      - name: temporada
+        data_type: number(4, 0)
+        description: Ano da temporada.
+        constraints:
+          - type: not_null
+      - name: atleta_id
+        data_type: number(38, 0)
+        description: Id do atleta.
+        constraints:
+          - type: not_null
+      - name: apelido
+        data_type: varchar
+        description: Apelido mais recente do atleta.
+      - name: clube
+        data_type: varchar
+        description: Clube na última rodada da temporada.
+      - name: posicao
+        data_type: varchar
+        description: Posição na última rodada da temporada.
+      - name: jogos
+        data_type: number(38, 0)
+        description: Jogos na temporada, segundo o Cartola.
+      - name: media
+        data_type: number(10, 2)
+        description: Média de pontos na temporada, segundo o Cartola.
+      - name: jogos_validos
+        data_type: number(38, 0)
+        description: Jogos com pontuação válida (sem a rodada 1 em 2022, 2023 e 2025).
+      - name: pontos_validos
+        data_type: number(10, 2)
+        description: Soma dos pontos nos jogos válidos.
+      - name: cartoletas_investidas
+        data_type: number(10, 2)
+        description: Soma do preço pago antes de cada jogo válido, em C$.
+      - name: pontos_por_cartoleta
+        data_type: number(10, 3)
+        description: Custo-benefício = pontos válidos ÷ cartoletas investidas.
+      - name: jogos_5_ou_mais
+        data_type: number(38, 0)
+        description: Jogos válidos com 5 pontos ou mais (base da consistência).
+      - name: jogos_10_ou_mais
+        data_type: number(38, 0)
+        description: Jogos válidos com 10 pontos ou mais ("mitadas").
+      - name: preco_inicial
+        data_type: number(10, 2)
+        description: Preço antes do primeiro jogo da temporada, em C$.
+      - name: preco_final
+        data_type: number(10, 2)
+        description: Preço depois da última rodada disponível, em C$.
+      - name: valorizacao
+        data_type: number(10, 2)
+        description: Preço final menos preço inicial, em C$.
+      - name: gols
+        data_type: number(38, 0)
+        description: Gols na temporada.
+      - name: assistencias
+        data_type: number(38, 0)
+        description: Assistências na temporada.
+      - name: desarmes
+        data_type: number(38, 0)
+        description: Desarmes na temporada.
+      - name: elegivel_ranking
+        data_type: boolean
+        description: Tem pelo menos o mínimo de jogos (vars.min_jogos_ranking = 19) para entrar nos rankings.
+
+  - name: mart_faixa_preco
+    description: >
+      Jogos válidos por temporada, posição e faixa de preço pago antes da rodada. Guarda somas para o
+      dashboard recalcular pontos por cartoleta, média e % de jogos com 10+ pontos com qualquer filtro.
+    columns:
+      - name: faixa_preco
+        description: até C$ 5, C$ 5 a 10, C$ 10 a 15 ou acima de C$ 15.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['até C$ 5', 'C$ 5 a 10', 'C$ 10 a 15', 'acima de C$ 15']
+      - name: jogos
+        description: Quantidade de jogos válidos.
+      - name: soma_pontos
+        description: Soma dos pontos.
+      - name: soma_cartoletas
+        description: Soma dos preços pagos, em C$.
+      - name: jogos_10_ou_mais
+        description: Jogos com 10 pontos ou mais.
+
+  - name: mart_avaliacao_projecao
+    description: >
+      Erro médio absoluto de cada método de projeção, por período (temporadas fechadas e temporada atual).
+      Mostra que a forma recente (últimos 3 jogos) erra mais que a média da temporada.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [periodo, metodo]
+    columns:
+      - name: metodo
+        description: Método de projeção.
+      - name: erro_medio_absoluto
+        description: Média de |pontos reais − pontos previstos|, em pontos. Quanto menor, melhor.
+        data_tests: [not_null]
+
+  - name: mart_erro_por_jogos
+    description: >
+      Erro médio absoluto de três métodos de projeção conforme o número de jogos válidos que o atleta
+      já tinha antes da rodada (20 = 20 ou mais). Temporadas fechadas, sem técnicos. Alimenta o gráfico
+      de linha do dashboard.
+    columns:
+      - name: jogos_anteriores
+        description: Jogos válidos do atleta na temporada antes da rodada (máximo 20).
+        data_tests: [unique, not_null]
+      - name: erro_jogador_posicao
+        description: Erro do método escolhido (média do jogador puxada para a da posição), em pontos.
+        data_tests: [not_null]
+
+  - name: mart_jogador_rodada
+    description: >
+      Uma linha por jogo válido, com apelido, clube e posição prontos. Base do "time do período" no
+      dashboard: a fonte não tem datas, então o período é um intervalo de rodadas (4 rodadas ≈ 1 mês).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [temporada, rodada, atleta_id]
+    columns:
+      - name: pontos
+        description: Pontuação na rodada.
+        data_tests: [not_null]
+      - name: preco_antes
+        description: Preço pago para escalar o atleta na rodada, em C$.
+        data_tests: [not_null]
+      - name: variacao
+        description: Quanto o preço do atleta mudou nesta rodada, em C$.
+
+  - name: mart_projecao_proxima_rodada
+    description: Projeção de pontos para a próxima rodada da temporada atual, para cada atleta do mercado.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: temporada
+        data_type: number(4, 0)
+        description: Temporada da projeção (vars.temporada_atual).
+      - name: rodada_projetada
+        data_type: number(38, 0)
+        description: Rodada que está sendo projetada (última disponível + 1).
+      - name: atleta_id
+        data_type: number(38, 0)
+        description: Id do atleta.
+        constraints:
+          - type: not_null
+        data_tests: [unique]
+      - name: apelido
+        data_type: varchar
+        description: Apelido do atleta.
+      - name: clube
+        data_type: varchar
+        description: Clube atual.
+      - name: posicao
+        data_type: varchar
+        description: Posição atual.
+      - name: status
+        data_type: varchar
+        description: Status no mercado (Provável, Dúvida, Contundido, Suspenso, Nulo).
+      - name: preco
+        data_type: number(10, 2)
+        description: Preço para escalar na próxima rodada, em C$.
+      - name: jogos_validos
+        data_type: number(38, 0)
+        description: Jogos válidos na temporada.
+      - name: media_temporada
+        data_type: number(10, 2)
+        description: Média nos jogos válidos da temporada.
+      - name: pontos_projetados
+        data_type: number(10, 2)
+        description: (pontos na temporada + k × média da posição) ÷ (jogos + k).
+      - name: projetados_por_cartoleta
+        data_type: number(10, 3)
+        description: Pontos projetados ÷ preço.
+
+exposures:
+  - name: dashboard_cartola
+    label: Dashboard Cartola FC
+    type: dashboard
+    maturity: medium
+    description: >
+      Dashboard em Streamlit in Snowflake (app/streamlit_app.py): aba "Escalar" (time projetado para a
+      próxima rodada, com orçamento) e aba "Melhores jogadores" (seleção e ranking por temporada ou rodada).
+    owner:
+      name: NatMartines
+    depends_on:
+      - ref('dim_clube')
+      - ref('mart_jogador_temporada')
+      - ref('mart_jogador_rodada')
+      - ref('mart_projecao_proxima_rodada')

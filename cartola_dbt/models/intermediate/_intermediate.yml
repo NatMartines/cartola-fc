@@ -1,0 +1,83 @@
+version: 2
+
+models:
+  - name: int_desempenho_rodada
+    description: >
+      Uma linha por atleta por rodada com o que aconteceu NA rodada. Como jogos e scouts da fonte são
+      acumulados, os valores da rodada saem da diferença para o arquivo anterior (lag). Também marca
+      arquivos ruins: o rodada-1 de 2022 e de 2025 é foto de pré-temporada (ninguém jogou) e o de 2023
+      informa rodada 2 com pontos zerados. Nesses casos pontos_validos = false.
+    columns:
+      - name: entrou_em_campo
+        description: >
+          Usa a flag da fonte quando existe. Sem flag (2022 e parte de 2023), considera que entrou se
+          o total de jogos aumentou em relação ao arquivo anterior. Depois de um arquivo de pré-temporada,
+          exige ter pontuado ou um salto de 2 jogos (o salto pode incluir a rodada 1).
+        data_tests: [not_null]
+      - name: pontos_validos
+        description: A pontuação do arquivo é mesmo a da rodada do nome do arquivo.
+        data_tests: [not_null]
+      - name: conta_na_analise
+        description: Entrou em campo e a pontuação é válida. Filtro usado em todas as análises de pontos.
+        data_tests: [not_null]
+      - name: preco_antes
+        description: Preço pago para escalar o atleta nesta rodada (preço depois da rodada menos a variação), em C$.
+      - name: jogos_na_rodada
+        description: Diferença de jogos acumulados para o arquivo anterior. Normalmente 0 ou 1.
+      - name: scout_g
+        description: >
+          Gols na rodada (diferença do acumulado). As demais colunas scout_* seguem a mesma regra.
+          Na rodada 2 de 2022 e de 2025 incluem também a rodada 1, que não tem arquivo válido.
+
+  - name: int_projecao
+    description: >
+      Uma linha por jogo válido, com a previsão que cada método teria feito usando só as rodadas
+      anteriores (sem olhar o resultado). Métodos: média do jogador na temporada, média da posição,
+      últimos 3 jogos, últimos 5 jogos e shrinkage (média do jogador puxada para a da posição, com peso k).
+    columns:
+      - name: jogos_anteriores
+        description: Jogos válidos do atleta na temporada antes desta rodada.
+      - name: proj_shrinkage
+        description: (soma dos pontos anteriores + k × média da posição até a rodada anterior) / (jogos anteriores + k).
+
+  - name: int_mercado_atual
+    description: Clube, preço e status de cada atleta na rodada mais recente da temporada atual. Fonte do snapshot.
+    columns:
+      - name: atleta_id
+        description: Id do atleta.
+        data_tests: [unique, not_null]
+
+unit_tests:
+  - name: projecao_usa_so_rodadas_anteriores
+    description: >
+      A projeção de cada rodada usa só jogos anteriores, ignora rodadas em que o atleta não entrou
+      e puxa a média do jogador para a média da posição com peso k = 5.
+    model: int_projecao
+    overrides:
+      vars:
+        k_shrinkage: 5
+    given:
+      - input: ref('int_desempenho_rodada')
+        format: dict
+        rows:
+          - {temporada: 2026, rodada: 1, atleta_id: 1, posicao_id: 4, pontos: 4.0, conta_na_analise: true}
+          - {temporada: 2026, rodada: 2, atleta_id: 1, posicao_id: 4, pontos: 6.0, conta_na_analise: true}
+          - {temporada: 2026, rodada: 3, atleta_id: 1, posicao_id: 4, pontos: 0.0, conta_na_analise: false}
+          - {temporada: 2026, rodada: 4, atleta_id: 1, posicao_id: 4, pontos: 8.0, conta_na_analise: true}
+          - {temporada: 2026, rodada: 1, atleta_id: 2, posicao_id: 4, pontos: 2.0, conta_na_analise: true}
+          - {temporada: 2026, rodada: 2, atleta_id: 2, posicao_id: 4, pontos: 2.0, conta_na_analise: true}
+          - {temporada: 2026, rodada: 4, atleta_id: 2, posicao_id: 4, pontos: 4.0, conta_na_analise: true}
+    expect:
+      format: dict
+      rows:
+        # rodada 1: ainda não há média da posição
+        - {temporada: 2026, rodada: 1, atleta_id: 1, jogos_anteriores: 0, proj_shrinkage: null}
+        - {temporada: 2026, rodada: 1, atleta_id: 2, jogos_anteriores: 0, proj_shrinkage: null}
+        # rodada 2: posição = (4 + 2) / 2 = 3 → (4 + 5 × 3) / (1 + 5) = 3,17
+        - {temporada: 2026, rodada: 2, atleta_id: 1, jogos_anteriores: 1, proj_shrinkage: 3.17}
+        # (2 + 5 × 3) / (1 + 5) = 2,83
+        - {temporada: 2026, rodada: 2, atleta_id: 2, jogos_anteriores: 1, proj_shrinkage: 2.83}
+        # rodada 4: rodada 3 não conta; posição = 14 / 4 = 3,5 → (10 + 17,5) / 7 = 3,93
+        - {temporada: 2026, rodada: 4, atleta_id: 1, jogos_anteriores: 2, proj_shrinkage: 3.93}
+        # (4 + 17,5) / 7 = 3,07
+        - {temporada: 2026, rodada: 4, atleta_id: 2, jogos_anteriores: 2, proj_shrinkage: 3.07}

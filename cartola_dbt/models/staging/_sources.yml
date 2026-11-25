@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: raw
+    database: CARTOLA
+    schema: RAW
+    tables:
+      - name: raw_atletas_rodada
+        description: >
+          Um registro por atleta por arquivo de rodada do caRtola (GitHub), carregado com COPY INTO.
+          O JSON inteiro fica em "dados" (VARIANT), com os nomes originais das colunas do CSV.
+        columns:
+          - name: dados
+            description: JSON da linha do CSV, com valores em texto.
+          - name: arquivo_origem
+            description: Caminho do arquivo no stage (ex. rodadas/temporada=2025/rodada-10.json.gz).
+          - name: carregado_em
+            description: Data e hora da carga.
+
+      - name: raw_escudos
+        description: >
+          Escudos dos clubes baixados da API pública do Cartola (endpoint /clubes) pelo
+          ingestion/carregar_escudos.py, com a imagem em base64. As imagens não vão para o GitHub.
+        columns:
+          - name: clube_id
+            description: Id do clube no Cartola (o mesmo da fonte de atletas).
+          - name: imagem_base64
+            description: Imagem do escudo (o maior tamanho disponível) em base64.

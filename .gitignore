@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+# Dados e credenciais
+data/
+.env
+*.p8
+keys/
+
+# dbt e Elementary
+target/
+dbt_packages/
+logs/
+profiles.yml
+edr_target/
+# Atalho local do Streamlit (secrets)
+.streamlit/secrets.toml

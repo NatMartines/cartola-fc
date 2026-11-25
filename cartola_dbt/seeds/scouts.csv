@@ -1,0 +1,22 @@
+sigla,nome,tipo
+G,Gol,ataque
+A,Assistência,ataque
+FT,Finalização na trave,ataque
+FD,Finalização defendida,ataque
+FF,Finalização para fora,ataque
+FS,Falta sofrida,ataque
+PS,Pênalti sofrido,ataque
+PI,Passe incompleto,ataque
+I,Impedimento,ataque
+PP,Pênalti perdido,ataque
+DS,Desarme,defesa
+SG,Jogo sem sofrer gol,defesa
+DE,Defesa,defesa
+DP,Defesa de pênalti,defesa
+GS,Gol sofrido,defesa
+FC,Falta cometida,defesa
+PC,Pênalti cometido,defesa
+CA,Cartão amarelo,defesa
+CV,Cartão vermelho,defesa
+GC,Gol contra,defesa
+V,Vitória (técnico),tecnico

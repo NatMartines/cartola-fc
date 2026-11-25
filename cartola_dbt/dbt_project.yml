@@ -1,0 +1,49 @@
+name: 'cartola_dbt'
+version: '1.0.0'
+
+profile: 'cartola_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Scouts que aparecem em pelo menos uma temporada de 2022 a 2026 (os que faltam num ano viram 0)
+  scouts: ['A', 'CA', 'CV', 'DE', 'DP', 'DS', 'FC', 'FD', 'FF', 'FS', 'FT', 'G', 'GC', 'GS', 'I', 'PC', 'PI', 'PP', 'PS', 'SG', 'V']
+  # Peso da média da posição na projeção (escolha explicada em docs/decisoes.md)
+  k_shrinkage: 5
+  # Mínimo de jogos para entrar nos rankings (meia temporada)
+  min_jogos_ranking: 19
+  # Temporada em andamento (projeção da próxima rodada e snapshot do mercado)
+  temporada_atual: 2026
+  # Última rodada considerada no snapshot do mercado (99 = a mais recente)
+  rodada_mercado: 99
+
+models:
+  cartola_dbt:
+    staging:
+      +materialized: view
+      +schema: STAGING
+    intermediate:
+      +materialized: view
+      +schema: STAGING
+    marts:
+      +materialized: table
+      +schema: MARTS
+  elementary:
+    +schema: ELEMENTARY
+
+seeds:
+  cartola_dbt:
+    +schema: STAGING
+
+snapshots:
+  cartola_dbt:
+    +schema: SNAPSHOTS

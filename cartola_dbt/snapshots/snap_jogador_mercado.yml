@@ -1,0 +1,10 @@
+snapshots:
+  - name: snap_jogador_mercado
+    description: >
+      Histórico (SCD tipo 2) de clube, preço e status de cada atleta no mercado da temporada atual.
+      Cada mudança gera uma nova linha com dbt_valid_from e dbt_valid_to.
+    relation: ref('int_mercado_atual')
+    config:
+      unique_key: atleta_id
+      strategy: check
+      check_cols: [clube_id, preco, status_id]

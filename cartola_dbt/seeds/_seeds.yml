@@ -1,0 +1,58 @@
+version: 2
+
+seeds:
+  - name: clubes
+    description: >
+      De-para dos clubes da Série A de 2022 a 2026. A fonte traz o nome do clube em três formatos
+      (nome completo, sigla e texto com acentuação quebrada, ex. "SÃ£o Paulo"), então o projeto usa
+      só o clube_id da fonte e pega o nome daqui.
+    config:
+      column_types:
+        clube_id: integer
+        nome: varchar
+        sigla: varchar
+    columns:
+      - name: clube_id
+        description: Id do clube no Cartola.
+        data_tests: [unique, not_null]
+      - name: nome
+        description: Nome curto do clube, com acentuação correta.
+        data_tests: [not_null]
+      - name: sigla
+        description: Sigla de três letras usada no Cartola.
+        data_tests: [unique, not_null]
+
+  - name: posicoes
+    description: Posições do Cartola. O técnico conta como posição.
+    config:
+      column_types:
+        posicao_id: integer
+    columns:
+      - name: posicao_id
+        description: 1 goleiro, 2 lateral, 3 zagueiro, 4 meia, 5 atacante, 6 técnico.
+        data_tests: [unique, not_null]
+      - name: nome
+        description: Nome da posição.
+
+  - name: status_atleta
+    description: Status do atleta no mercado ao fim da rodada.
+    config:
+      column_types:
+        status_id: integer
+    columns:
+      - name: status_id
+        description: 2 dúvida, 3 suspenso, 5 contundido, 6 nulo, 7 provável.
+        data_tests: [unique, not_null]
+
+  - name: scouts
+    description: Siglas dos scouts (ações do jogador na partida) usadas pelo Cartola.
+    columns:
+      - name: sigla
+        description: Sigla do scout, igual ao nome da coluna na fonte.
+        data_tests: [unique, not_null]
+      - name: tipo
+        description: ataque, defesa ou tecnico.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ataque', 'defesa', 'tecnico']
